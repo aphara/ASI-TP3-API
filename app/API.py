@@ -2,7 +2,6 @@
 from flask import Flask
 from model import article
 
-
 app = Flask(__name__)
 
 
