@@ -6,16 +6,6 @@ import json
 from datetime import date
 
 
-def test():
-    mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'), database=os.environ.get('DB_NAME'))
-    cursor = mariadb_connection.cursor()
-    results = []
-    cursor.execute("SELECT author,title from article where author=\'Alex\'")
-    for row in cursor.fetchall():
-        results.append(row)
-    return results
-
-
 class Article(object):
     def __init__(self, id, author, title, date, section, status, text):
         self.id = id
@@ -26,63 +16,28 @@ class Article(object):
         self.status = status
         self.text = text
 
-    @classmethod
-    def getAll(self):
-        mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'), database=os.environ.get('DB_NAME'))
-        cursor = mariadb_connection.cursor()
-        results = []
-        cursor.execute("SELECT * from article")
-        for row in cursor.fetchall():
-            row = Article(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
-            results.append(row)
-        return results
-
-    @classmethod
-    def getAlltoDict(self):
-        mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'), database=os.environ.get('DB_NAME'))
-        cursor = mariadb_connection.cursor()
-        articles = {}
-        cursor.execute("SELECT * from article")
-        for row in cursor.fetchall():
-            articles['id': row[0]] = {'Author': row[1], 'Title': row[2], 'Date': row[3], 'Section': row[4]}
-        return articles
-
     @staticmethod
-    def insertdb(articles):
+    def getAlltoDict(Section):
         try:
-            mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'), database=os.environ.get('DB_NAME'))
-            cursor = mariadb_connection.cursor()
-            sql_insert_query = """INSERT INTO article(author, title, date, section, status, text) 
-            VALUES (%s,%s,%s,%s,%s,%s)"""
-            cursor = mariadb_connection.cursor(prepared=True)
-            result = cursor.executemany(sql_insert_query, articles)
-            mariadb_connection.commit()
-            return cursor.rowcount, "Record inserted successfully into python_users table"
+            mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'),
+                                                 database=os.environ.get('DB_NAME'), use_pure=True)
+            cur = mariadb_connection.cursor(prepared=True)
+            query = "SELECT * FROM article WHERE section=%s"
+            cur.execute(query, (Section,))
+            row_headers = [x[0] for x in cur.description]  # this will extract row headers
+            rv = cur.fetchall()
+            json_data = []
+            for result in rv:
+                json_data.append(dict(zip(row_headers, result)))
+            return json_data
         except mariadb.Error as error:
-            return ("Failed to insert into MySQL table {}".format(error))
+            return ("Failed to select into MySQL table {}".format(error))
         finally:
             # closing database connection.
             if (mariadb_connection.is_connected()):
-                cursor.close()
+                cur.close()
                 mariadb_connection.close()
-                return ("MySQL connection is closed")
-
-    @staticmethod
-    def getlastid():
-        mariadb_connection = mariadb.connect(user=os.environ.get('DB_USER'), password=os.environ.get('DB_PASSWORD'), database=os.environ.get('DB_NAME'))
-        cursor = mariadb_connection.cursor()
-        cursor.execute("SELECT article_id from article ORDER BY article_id DESC ")
-        for row in cursor.fetchone():
-            results = row
-        return results
-
-    def print(self):
-        x = (self.author, self.title, self.date, self.section, self.status, self.text)
-        return x
-
-    def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__,
-                          sort_keys=True, indent=4)
+                print("MySQL connection is closed")
 
 
 class ArticleEncoder(JSONEncoder):
@@ -96,7 +51,7 @@ class ArticleEncoder(JSONEncoder):
             return object.strftime('%Y-%m-%d')
 
         if isinstance(object, set):
-            return object.__dict__
+            return list(object)
         else:
             return json.JSONEncoder.default(self, object)
 
