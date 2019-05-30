@@ -6,11 +6,11 @@ from model import article
 app = Flask(__name__)
 
 
-@app.route('/todo/api/v1.0/tasks', methods=['GET'])
-def get_tasks():
-    json_data = article.Article.getAlltoDict("Music")
+@app.route('/api/articles/<string:section>', methods=['GET'])
+def get_articles(section):
+    json_data = article.Article.getAlltoDict(section)
     return article.ArticleEncoder().encode(json_data)
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='127.0.0.1', port=5001, debug=True)
